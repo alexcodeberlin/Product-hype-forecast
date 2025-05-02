@@ -37,14 +37,14 @@ This application integrates real-time data from Twitter to perform sentiment ana
 ## Prerequisites
 
 
-Here are the external Python libraries this project uses:
-pandas
-matplotlib
-textblob
-tweepy
-elasticsearch & elasticsearch-dsl
-prophet
-streamlit
+- Here are the external Python libraries this project uses:
+- pandas
+- matplotlib
+- textblob
+- tweepy
+- elasticsearch & elasticsearch-dsl
+- prophet
+- streamlit
 ---
 
 ## Installation
