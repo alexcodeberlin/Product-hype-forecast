@@ -36,10 +36,15 @@ This application integrates real-time data from Twitter to perform sentiment ana
 
 ## Prerequisites
 
-- Python 3.9+  
-- Java 11+ (for Elasticsearch)  
-- Twitter Developer Bearer Token  
 
+Here are the external Python libraries this project uses:
+pandas
+matplotlib
+textblob
+tweepy
+elasticsearch & elasticsearch-dsl
+prophet
+streamlit
 ---
 
 ## Installation
