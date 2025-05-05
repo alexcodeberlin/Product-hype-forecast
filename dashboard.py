@@ -1,3 +1,4 @@
+# Import required libraries
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,15 +11,16 @@ import sqlite3
 # --------------------
 # Elasticsearch Configuration
 # --------------------
-ES_HOST = "http://localhost:9200"
-ES_INDEX = "twitter_datav7"
+ES_HOST = "http://localhost:9200"  # Elasticsearch server URL
+ES_INDEX = "twitter_datav7"        # Index name for tweets in Elasticsearch
 
-# Connect to Elasticsearch
+# Connect to the Elasticsearch server
 connections.create_connection(hosts=[ES_HOST])
 
 # --------------------
 # Define Elasticsearch ORM Model
 # --------------------
+# This class defines the structure of documents (tweets) stored in Elasticsearch
 class Tweet(Document):
     tweet_id = Keyword()
     timestamp = Date()
@@ -38,13 +40,14 @@ class Tweet(Document):
     engagement_final = Float()
 
     class Index:
-        name = ES_INDEX
+        name = ES_INDEX  # Link to Elasticsearch index
 
 # --------------------
 # SQLite Database Setup
 # --------------------
-DB_FILE = "engagement_data.db"
+DB_FILE = "engagement_data.db"  # SQLite database file
 
+# Create the database table if it doesn't exist
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -58,6 +61,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Save data (x, y values) into the database
 def save_to_db(x_values, y_values):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -69,6 +73,7 @@ def save_to_db(x_values, y_values):
     conn.commit()
     conn.close()
 
+# Fetch all saved engagement data from the database
 def get_saved_data():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -77,11 +82,14 @@ def get_saved_data():
     conn.close()
     return data
 
+# Initialize the database on app start
 init_db()
 
 # --------------------
 # Load Data Functions
 # --------------------
+
+# Load Twitter sentiment data (timestamp and sentiment score)
 @st.cache_data
 def load_twitter_data():
     query = Tweet.search()[:10000]
@@ -96,6 +104,7 @@ def load_twitter_data():
         df["ds"] = pd.to_datetime(df["ds"]).dt.tz_localize(None)
     return df
 
+# Load engagement data for a specific metric (optionally filtered by location)
 @st.cache_data
 def load_engagement_data(metric, location=None):
     query = Tweet.search()[:10000]
@@ -112,6 +121,7 @@ def load_engagement_data(metric, location=None):
         df["ds"] = pd.to_datetime(df["ds"]).dt.tz_localize(None)
     return df
 
+# Load final engagement metric data
 @st.cache_data
 def load_engagement_final():
     query = Tweet.search()[:10000]
@@ -126,6 +136,7 @@ def load_engagement_final():
         df["ds"] = pd.to_datetime(df["ds"]).dt.tz_localize(None)
     return df
 
+# Get a list of unique user locations with counts
 @st.cache_data
 def get_unique_user_locations():
     query = Tweet.search()[:10000]
@@ -136,8 +147,10 @@ def get_unique_user_locations():
     return [f"{loc.title()} ({count})" for loc, count in cleaned_locations]
 
 # --------------------
-# New: Hashtag Table Function
+# Hashtag Engagement Table
 # --------------------
+
+# Extract hashtags from tweets and calculate their average engagement
 @st.cache_data
 def get_hashtag_engagement_data():
     query = Tweet.search()[:10000]
@@ -155,7 +168,7 @@ def get_hashtag_engagement_data():
         for tag in hashtags:
             hashtag_engagement[tag.lower()].append(engagement)
 
-    # Calculate average engagement for each hashtag
+    # Create DataFrame of average engagement per hashtag
     table_data = [{"Hashtag": tag, "Avg Engagement": sum(vals) / len(vals)} for tag, vals in hashtag_engagement.items() if vals]
     df = pd.DataFrame(table_data).sort_values("Avg Engagement", ascending=False)
     return df
@@ -163,6 +176,8 @@ def get_hashtag_engagement_data():
 # --------------------
 # Plotting Functions
 # --------------------
+
+# Plot historical data
 def plot_past_data(df, title, ylabel):
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(df["ds"], df["y"], marker="o", linestyle="-")
@@ -171,6 +186,7 @@ def plot_past_data(df, title, ylabel):
     ax.set_title(title)
     st.pyplot(fig)
 
+# Plot forecast with Prophet results
 def plot_forecast_data(df, forecast, title):
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(df["ds"], df["y"], marker="o", label="Past Data")
@@ -183,21 +199,26 @@ def plot_forecast_data(df, forecast, title):
     st.pyplot(fig)
 
 # --------------------
-# Streamlit App
+# Streamlit App Interface
 # --------------------
+
 st.title("📊 Future Trend & Sentiment Prediction")
 
+# Sidebar options to select the type of data
 dataset_choice = st.sidebar.radio(
     "Select Dataset:",
     ["Google Trends", "Twitter Sentiment", "Engagement Overview", "Favourite Overview", "Register and Login", ""]
 )
 
+# Show slider only for datasets that require forecasting
 if dataset_choice in ["Google Trends", "Twitter Sentiment", "Engagement Overview"]:
     forecast_seconds = st.sidebar.slider("Select number of seconds to predict:", 30, 3600, 1800, 30)
 
+# Placeholder if Google Trends data were to be added
 if dataset_choice == "Google Trends":
-    pass  # Add Google Trends logic if needed
+    pass
 
+# Process and forecast Twitter sentiment
 elif dataset_choice == "Twitter Sentiment":
     df = load_twitter_data()
     st.subheader("💬 Predicting Twitter Sentiment for iPhone Tweets")
@@ -211,10 +232,10 @@ elif dataset_choice == "Twitter Sentiment":
         forecast = model.predict(future)
 
         plot_forecast_data(df, forecast, f"Predicted Twitter Sentiment for the Next {forecast_seconds} Seconds")
-
         st.write(f"### Forecasted Data (Next {forecast_seconds} Seconds)")
         st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_seconds))
 
+# Show and forecast various engagement metrics
 elif dataset_choice == "Engagement Overview":
     st.subheader("📣 Past Engagement Metrics for iPhone Tweets")
 
@@ -228,24 +249,24 @@ elif dataset_choice == "Engagement Overview":
     else:
         plot_past_data(df_final, "Engagement Final Over Time", "Engagement Final")
 
-        # Button to save data to SQLite
+        # Button to save current data into the SQLite database
         if st.button("🔍 Save Engagement Final Data to Database"):
-            x_values = df_final["ds"].astype(str)  # xAxis as string (timestamp)
-            y_values = df_final["y"]  # yAxis as engagement_final
+            x_values = df_final["ds"].astype(str)
+            y_values = df_final["y"]
             save_to_db(x_values, y_values)
             st.success("Data successfully saved to the database!")
 
+        # Forecast engagement_final
         model = Prophet()
         model.fit(df_final)
         future = model.make_future_dataframe(periods=forecast_seconds, freq="30S")
         forecast = model.predict(future)
 
         plot_forecast_data(df_final, forecast, f"Forecasted Engagement Final for the Next {forecast_seconds} Seconds")
-
         st.write(f"### Forecasted Data (Next {forecast_seconds} Seconds) for Engagement Final")
         st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_seconds))
 
-    # Other engagement metrics
+    # Loop through and display other engagement metrics
     metrics = [
         "regular_engagement",
         "google_engagement",
@@ -267,11 +288,10 @@ elif dataset_choice == "Engagement Overview":
             forecast = model.predict(future)
 
             plot_forecast_data(df_metric, forecast, f"Forecasted {metric.replace('_', ' ').title()} for the Next {forecast_seconds} Seconds")
-
             st.write(f"### Forecasted Data (Next {forecast_seconds} Seconds) for {metric.replace('_', ' ').title()}")
             st.dataframe(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(forecast_seconds))
 
-    # Hashtag Engagement Table
+    # Display top hashtags by engagement
     st.subheader("🏷️ Hashtag Engagement Table")
     df_hashtags = get_hashtag_engagement_data()
     if df_hashtags.empty:
@@ -279,27 +299,23 @@ elif dataset_choice == "Engagement Overview":
     else:
         st.dataframe(df_hashtags.reset_index(drop=True))
 
+# Show saved engagement data from SQLite
 elif dataset_choice == "Favourite Overview":
     st.subheader("🔖 Favourites Overview")
 
-    # Fetch data from the SQLite database
     saved_data = get_saved_data()
 
     if saved_data:
-        # Create a DataFrame from the SQLite data
         df_saved_data = pd.DataFrame(saved_data, columns=["ID", "xAxis", "yAxis"])
-
-        # Convert xAxis to datetime (if it's stored as a string, otherwise skip this step)
         df_saved_data['xAxis'] = pd.to_datetime(df_saved_data['xAxis'], errors='coerce')
 
-        # Check if conversion was successful
         if df_saved_data['xAxis'].isnull().any():
             st.warning("Some xAxis values could not be converted to datetime.")
 
         st.write("### Saved Engagement Data")
         st.dataframe(df_saved_data)
 
-        # Plot the data
+        # Plot saved data
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.plot(df_saved_data['xAxis'], df_saved_data['yAxis'], marker="o", linestyle="-")
         ax.set_xlabel("Timestamp")
