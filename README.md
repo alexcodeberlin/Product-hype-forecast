@@ -25,7 +25,7 @@ This application integrates real-time data from Twitter to perform sentiment ana
 - Stores data in:
   1. **Elasticsearch** 
   2. **SQLite** 
-  3. **PostgreSQL** 
+  3. **MySQL** 
 - Interactive Streamlit dashboard with:
   - Time-series forecasts (Prophet)
   - Engagement over time by metric & location
