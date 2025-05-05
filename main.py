@@ -12,7 +12,7 @@ from save_dsl import save_to_elasticsearch_dsl
 # Configuration
 # --------------------
 
-BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAHvL0AEAAAAAcgrVTUfY%2FSMD3d1%2Fnq78budacQU%3DYIElYv8MyXgtwD9Y9PvbBBowfmLQHQiIgJOScI4g1apKVSgbaQ"
+BEARER_TOKEN = "Paste in your baerer token"
 PRODUCT = "iPhone"
 
 # --------------------
