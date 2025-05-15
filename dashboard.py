@@ -8,6 +8,23 @@ from collections import defaultdict, Counter
 import re
 import sqlite3
 
+import mysql.connector
+import hashlib
+from datetime import datetime
+
+# Connect to MySQL database
+def connect_to_db():
+    try:
+        return mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="",
+            database="user_plot_app"
+        )
+    except mysql.connector.Error as err:
+        st.error(f"MySQL connection failed: {err}")
+        st.stop()
+
 # --------------------
 # Elasticsearch Configuration
 # --------------------
@@ -38,9 +55,13 @@ class Tweet(Document):
     adjusted_engagement = Float()
     engagement_including_sentiment = Float()
     engagement_final = Float()
-
+        
     class Index:
-        name = ES_INDEX  # Link to Elasticsearch index
+        name = ES_INDEX
+        settings = {
+            "number_of_shards": 3,
+            "number_of_replicas": 2
+        }
 
 # --------------------
 # SQLite Database Setup
@@ -202,12 +223,38 @@ def plot_forecast_data(df, forecast, title):
 # Streamlit App Interface
 # --------------------
 
+# Hash password
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# Save user to database
+def register_user(username, email, password):
+    try:
+        conn = connect_to_db()
+        cursor = conn.cursor()
+
+        password_hashed = hash_password(password)
+        query = """
+            INSERT INTO users (username, email, password_hash, created_at)
+            VALUES (%s, %s, %s, %s)
+        """
+        values = (username, email, password_hashed, datetime.now())
+
+        cursor.execute(query, values)
+        conn.commit()
+
+        return True, "User registered successfully!"
+    except mysql.connector.Error as err:
+        return False, f"Error: {err}"
+    finally:
+        cursor.close()
+        conn.close()
 st.title("📊 Future Trend & Sentiment Prediction")
 
 # Sidebar options to select the type of data
 dataset_choice = st.sidebar.radio(
     "Select Dataset:",
-    ["Google Trends", "Twitter Sentiment", "Engagement Overview", "Favourite Overview", "Register and Login", ""]
+    ["Google Trends", "Twitter Sentiment", "Engagement Overview", "Favourite Overview", "Register and Login", "Shared plots"]
 )
 
 # Show slider only for datasets that require forecasting
@@ -325,3 +372,32 @@ elif dataset_choice == "Favourite Overview":
 
     else:
         st.write("No data found in the database.")
+
+elif dataset_choice == "Register and Login":
+
+    st.subheader("🔐 Register and Login")
+    tab1, tab2 = st.tabs(["Register", "Login"])
+
+    with tab1:
+        st.subheader("Create a new account")
+        
+        username = st.text_input("Username", key="register_username")
+        email = st.text_input("Email", key="register_email")
+        password = st.text_input("Password", type="password", key="register_password")
+        confirm_password = st.text_input("Confirm Password", type="password", key="register_confirm")
+
+        if st.button("Register"):
+            if password != confirm_password:
+                st.error("Passwords do not match.")
+            elif not username or not email or not password:
+                st.error("Please fill in all fields.")
+            else:
+                success, message = register_user(username, email, password)
+                if success:
+                    st.success(message)
+                else:
+                    st.error(message)
+
+    with tab2:
+        st.subheader("Login (not implemented yet)")
+        st.info("Login functionality will be added later.")
